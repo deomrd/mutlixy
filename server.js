@@ -6,7 +6,9 @@ const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const userRoutes = require('./routes/userRoutes'); // Routes des utilisateurs
+const userRoutes = require('./routes/userRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const productRoutes = require('./routes/productRoutes');
 const { login, refreshAccessToken, verifyAccessToken, logout, loginLimiter } = require('./controllers/authController'); // Assure-toi d'importer le bon chemin
 
 // Chargement des variables d'environnement
@@ -32,7 +34,10 @@ prisma.$connect()
   });
 
 // Routes
-app.use('/api/users', userRoutes); // Les routes pour les utilisateurs sont préfixées par "/api/users"
+// ces routes sont prefixees par api/table
+app.use('/api/users', userRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/products', productRoutes);  
 
 // Route de connexion
 app.post('/login', loginLimiter, login); // Limite les tentatives de connexion

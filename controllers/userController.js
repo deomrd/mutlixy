@@ -2,32 +2,48 @@ const bcrypt = require('bcryptjs');
 const { sendErrorMessage } = require('../services/errorService');
 const { handleTryCatch } = require('../services/tryCatchService');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient(); 
+const prisma = new PrismaClient();
 
-// Fonction pour récupérer un utilisateur par son ID, avec ses relations (commandes, panier, etc.)
-const getUserById = async (req, res) => {
-  const { id } = req.params; // Récupère l'ID de l'utilisateur dans les paramètres de la requête
-
+// Fonction pour récupérer tous les utilisateurs non supprimés
+const getAllUsers = async (req, res) => {
   await handleTryCatch(async () => {
-    // Recherche l'utilisateur avec ses relations (commandes, panier, etc.)
-    const user = await prisma.user.findUnique({
-      where: { id_user: parseInt(id) }, // Utilise l'ID passé dans l'URL
+    const users = await prisma.user.findMany({
+      where: { is_deleted: false }, // Exclut les utilisateurs supprimés
       include: {
-        orders: true, // Inclut les commandes de l'utilisateur
-        cart: true, // Inclut les articles du panier
-        productReviews: true, // Inclut les avis produits
-        wishlist: true, // Inclut les éléments de la wishlist
-        supportMessages: true, // Inclut les messages de support
-        administrator: true, // Inclut l'administrateur s'il existe
+        orders: true,
+        cart: true,
+        productReviews: true,
+        wishlist: true,
+        supportMessages: true,
+        administrator: true,
       },
     });
 
-    // Si l'utilisateur n'est pas trouvé, on renvoie une erreur 404
+    res.status(200).json(users);
+  }, res);
+};
+
+// Fonction pour récupérer un utilisateur par son ID, avec ses relations (commandes, panier, etc.)
+const getUserById = async (req, res) => {
+  const { id } = req.params;
+
+  await handleTryCatch(async () => {
+    const user = await prisma.user.findUnique({
+      where: { id_user: parseInt(id) },
+      include: {
+        orders: true,
+        cart: true,
+        productReviews: true,
+        wishlist: true,
+        supportMessages: true,
+        administrator: true,
+      },
+    });
+
     if (!user) {
       throw { code: 404, message: "Utilisateur non trouvé." };
     }
 
-    // Si l'utilisateur est trouvé, on renvoie les informations de l'utilisateur avec ses relations
     res.status(200).json(user);
   }, res);
 };
@@ -37,12 +53,10 @@ const createUser = async (req, res) => {
   const { first_name, last_name, email, password, address, phone, role } = req.body;
 
   await handleTryCatch(async () => {
-    // Validation basique de la requête
     if (!first_name || !last_name || !email || !password) {
       throw { code: 400, message: 'Les champs requis (prénom, nom, email, mot de passe) sont obligatoires' };
     }
 
-    // Vérification si l'email est déjà utilisé
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -51,16 +65,14 @@ const createUser = async (req, res) => {
       throw { code: 400, message: 'Un utilisateur avec cet email existe déjà' };
     }
 
-    // Hachage du mot de passe avant de l'enregistrer
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Création de l'utilisateur dans la base de données
     const newUser = await prisma.user.create({
       data: {
         first_name,
         last_name,
         email,
-        password: hashedPassword, // Utilisation du mot de passe haché
+        password: hashedPassword,
         address,
         phone,
         role,
@@ -77,7 +89,6 @@ const updateUser = async (req, res) => {
   const { first_name, last_name, email, password, address, phone, role } = req.body;
 
   await handleTryCatch(async () => {
-    // Recherche de l'utilisateur à mettre à jour
     const user = await prisma.user.findUnique({
       where: { id_user: Number(userId) },
     });
@@ -86,20 +97,17 @@ const updateUser = async (req, res) => {
       throw { code: 404, message: 'Utilisateur non trouvé' };
     }
 
-    // Hachage du mot de passe si un nouveau mot de passe est fourni
     const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
-    // Mise à jour des informations de l'utilisateur
     const updatedUser = await prisma.user.update({
       where: { id_user: Number(userId) },
       data: {
         first_name: first_name || user.first_name,
         last_name: last_name || user.last_name,
         email: email || user.email,
-        password: hashedPassword || user.password, // Si un nouveau mot de passe est donné, il est haché
+        password: hashedPassword || user.password,
         address: address || user.address,
         phone: phone || user.phone,
-        role: role || user.role,
       },
     });
 
@@ -112,7 +120,6 @@ const deleteUser = async (req, res) => {
   const userId = req.params.id;
 
   await handleTryCatch(async () => {
-    // Recherche de l'utilisateur à supprimer
     const user = await prisma.user.findUnique({
       where: { id_user: Number(userId) },
     });
@@ -121,21 +128,62 @@ const deleteUser = async (req, res) => {
       throw { code: 404, message: 'Utilisateur non trouvé' };
     }
 
-    // Soft delete : On marque l'utilisateur comme supprimé
     const deletedUser = await prisma.user.update({
       where: { id_user: Number(userId) },
-      data: {
-        is_deleted: true,
-      },
+      data: { is_deleted: true },
     });
 
     res.status(200).json({ success: true, message: 'Utilisateur supprimé avec succès', user: deletedUser });
   }, res);
 };
 
+// Mettre a jour le mot de passe
+const updatePasswordUser = async (req, res) => {
+  const userId = req.params.id;
+  const { oldPassword, newPassword } = req.body;
+
+  await handleTryCatch(async () => {
+    // Vérification que les deux mots de passe sont fournis
+    if (!oldPassword || !newPassword) {
+      throw { code: 400, message: 'L\'ancien et le nouveau mot de passe sont requis' };
+    }
+
+    // Récupérer l'utilisateur à partir de l'ID
+    const user = await prisma.user.findUnique({
+      where: { id_user: Number(userId) },
+    });
+
+    if (!user) {
+      throw { code: 404, message: 'Utilisateur non trouvé' };
+    }
+
+    // Vérification que l'ancien mot de passe est correct
+    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isOldPasswordValid) {
+      throw { code: 400, message: 'L\'ancien mot de passe est incorrect' };
+    }
+
+    // Hacher le nouveau mot de passe
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mise à jour du mot de passe avec le nouveau mot de passe
+    const updatedUser = await prisma.user.update({
+      where: { id_user: Number(userId) },
+      data: {
+        password: hashedNewPassword,
+      },
+    });
+
+    res.status(200).json({ success: true, message: 'Mot de passe mis à jour avec succès', user: updatedUser });
+  }, res);
+};
+
+
 module.exports = {
+  getAllUsers,
   getUserById,
   createUser,
   updateUser,
   deleteUser,
+  updatePasswordUser,
 };
