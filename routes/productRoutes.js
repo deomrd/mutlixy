@@ -17,4 +17,7 @@ router.put('/update/:id', productController.updateProduct);
 // Route pour supprimer un produit (soft delete)
 router.delete('/delete/:id', productController.deleteProduct);
 
+// Route pour rechercher des produits
+router.get('/products/search', productController.searchProducts);
+
 module.exports = router;

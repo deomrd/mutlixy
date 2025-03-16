@@ -20,7 +20,5 @@ router.delete('/delete/:id', userController.deleteUser);
 // Route pour récupérer un utilisateur par ID
 router.get('/:id', userController.getUserById);
 
-// Route pour connecter un utilisateur
-// router.post('/login', userController.loginUser);
 
 module.exports = router;

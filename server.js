@@ -9,6 +9,8 @@ const cookieParser = require('cookie-parser');
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 const { login, refreshAccessToken, verifyAccessToken, logout, loginLimiter } = require('./controllers/authController'); // Assure-toi d'importer le bon chemin
 
 // Chargement des variables d'environnement
@@ -37,7 +39,9 @@ prisma.$connect()
 // ces routes sont prefixees par api/table
 app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/products', productRoutes);  
+app.use('/api/products', productRoutes);
+app.use('/api/carts', cartRoutes);   
+app.use('/api/orders', orderRoutes);
 
 // Route de connexion
 app.post('/login', loginLimiter, login); // Limite les tentatives de connexion
