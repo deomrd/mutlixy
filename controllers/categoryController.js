@@ -7,22 +7,24 @@ const prisma = new PrismaClient();
 
 // Fonction pour récupérer toutes les catégories
 const getAllCategories = async (req, res) => {
-  await handleTryCatch(async () => {
-    // Récupérer toutes les catégories
+  try {
     const categories = await prisma.category.findMany({
       where: {
-        is_deleted: false, // On suppose qu'il y a un champ pour marquer si une catégorie est supprimée ou non
+        is_deleted: false, // Filtrer les catégories non supprimées
       },
     });
 
-    // Si aucune catégorie n'est trouvée, on renvoie un message indiquant qu'il n'y en a pas
-    if (!categories || categories.length === 0) {
-      throw { code: 404, message: "Aucune catégorie trouvée." };
-    }
+    // Ajouter une catégorie "Tous" au début de la liste
+    const allCategory = { id_category: 0, name: 'Tous' };
+    categories.unshift(allCategory); // Ajoute "Tous" au début de la liste
 
-    res.status(200).json(categories);
-  }, res);
+    res.status(200).json(categories); // Retourne la liste des catégories
+  } catch (error) {
+    console.error("Erreur lors de la récupération des catégories", error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
 };
+
 
 
 // recuperer l'ID de la categorie

@@ -5,52 +5,34 @@ const prisma = new PrismaClient();
 
 // Récupérer tous les produits avec leurs relations
 const getAllProducts = async (req, res) => {
-  const { page = 1, limit = 20 } = req.query;  // Par défaut, page 1 et limit 20 produits par page
+  try {
+    const { offset = 0, limit = 6 } = req.query;
 
-  await handleTryCatch(async () => {
-    try {
-      await prisma.$connect(); 
+    const products = await prisma.product.findMany({
+      skip: parseInt(offset),
+      take: parseInt(limit),
+    });
 
-      // Convertir page et limit en entiers
-      const pageNumber = parseInt(page);
-      const limitNumber = parseInt(limit);
+    const total = await prisma.product.count();
 
-      // Calculer l'offset pour la pagination
-      const offset = (pageNumber - 1) * limitNumber;
-
-      // Récupérer les produits avec pagination
-      const products = await prisma.product.findMany({
-        where: { is_deleted: false },
-        skip: offset,  // Utilisation de l'offset pour sauter les produits déjà récupérés
-        take: limitNumber,  // Nombre de produits à récupérer par page
-        include: {
-          category: true,
-          orderDetails: true,
-          productReviews: true,
-          stockHistory: true,
-          cart: true,
-          wishlist: true,
-          orderReturns: true,
-        },
-      });
-
-      // Récupérer le total pour afficher la pagination
-      const totalProducts = await prisma.product.count({
-        where: { is_deleted: false }
-      });
-
-      res.status(200).json({
-        products,
-        page: pageNumber,
-        limit: limitNumber,
-        total: totalProducts,
-        totalPages: Math.ceil(totalProducts / limitNumber),
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Erreur serveur", error });
-    }
-  }, res);
+    res.json({
+      success: true,
+      data: products,
+      page: Math.floor(offset / limit) + 1,
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des produits :', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des produits"
+    });
+  }
 };
+
+
 
 
 // Rechercher des produits avec auto-complétion
@@ -124,7 +106,7 @@ const getProductById = async (req, res) => {
 
 // Créer un produit et enregistrer l'historique du stock
 const createProduct = async (req, res) => {
-  const { name, description, price, stock, image, id_category } = req.body;
+  const { name, description, code, price, stock, image, id_category } = req.body;
 
   await handleTryCatch(async () => {
     if (!name || !price || !stock || !id_category) {
@@ -136,6 +118,7 @@ const createProduct = async (req, res) => {
       data: {
         name,
         description,
+        code,
         price: parseFloat(price),
         stock: parseInt(stock),
         image,
@@ -214,11 +197,41 @@ const deleteProduct = async (req, res) => {
   }, res);
 };
 
+
+// Fonction pour récupérer les produits par catégorie avec pagination
+const getProductsByCategory = async (req, res) => {
+  const { categoryName } = req.params; // Nom de la catégorie passé dans l'URL
+  const { page = 1, limit = 20 } = req.query; // Récupérer la page et la limite (par défaut page 1, limite 20)
+
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        category: {
+          name: categoryName,
+        },
+        is_deleted: false, // Filtrer les produits supprimés
+      },
+      skip: (page - 1) * limit, // Sauter les produits déjà affichés
+      take: limit, // Limiter le nombre de produits retournés
+    });
+
+    // Retourner les produits paginés
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des produits", error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+};
+
+
+
+
 module.exports = {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
-  searchProducts
+  searchProducts,
+  getProductsByCategory
 };
