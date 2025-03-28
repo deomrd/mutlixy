@@ -47,7 +47,7 @@ model Product {
   id_product  Int       @id @default(autoincrement())
   name        String
   description String?
-  code        String
+  codeProduct String
   price       Float
   stock       Int
   image       String?

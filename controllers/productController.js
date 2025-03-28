@@ -106,7 +106,7 @@ const getProductById = async (req, res) => {
 
 // Créer un produit et enregistrer l'historique du stock
 const createProduct = async (req, res) => {
-  const { name, description, code, price, stock, image, id_category } = req.body;
+  const { name, description, codeProduct, price, stock, image, id_category } = req.body;
 
   await handleTryCatch(async () => {
     if (!name || !price || !stock || !id_category) {
@@ -118,7 +118,7 @@ const createProduct = async (req, res) => {
       data: {
         name,
         description,
-        code,
+        codeProduct,
         price: parseFloat(price),
         stock: parseInt(stock),
         image,
